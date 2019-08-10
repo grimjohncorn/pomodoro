@@ -1,6 +1,49 @@
 import React from 'react';
-import {useState, useEffect, useRef} from 'react'
+import {useState, useEffect, useRef, useReducer} from 'react'
 import './App.css';
+
+const initialState = {
+  currentCount: 1500,
+  countType: 'session',
+  breakTime: 300,
+  sessionTime: 1500,
+  timerActive: false
+}
+
+const reducer = (state, action) => {
+  switch(action.type) {
+    case 'decrement':
+      //reduce the count by 1 or change session type if it reaches zero
+      if (state.currentCount === 0) {
+        //playSound('start');
+        return {
+          ...state, 
+          countType: state.countType==='session' ? 'break' : 'session',
+          currentCount: state.countType==='session' ? state.breakTime : state.sessionTime
+        }
+      } else {
+        return {...state, currentCount: state.currentCount - 1}
+      }
+    case 'changeTime':
+      //change the value of the break or session times
+      const [type, incDec] = action.data.split("-")
+      const time = type==='session' ? state.sessionTime : state.breakTime
+      const value = incDec==='increment' ? 60 : -60
+      
+      if ((time > 60 && incDec==='decrement') || (time < 3600 && incDec==='increment')) {
+        return {
+          ...state, 
+          sessionTime: type === 'session' ? state.sessionTime + value : state.sessionTime,
+          breakTime: type === 'break' ? state.breakTime + value : state.breakTime,
+          currentCount: (!state.timerActive && state.countType === type) ? state.currentCount + value : state.currentCount 
+        }
+      } else {
+        return state
+      }
+    default:
+      return state
+  }
+}
 
 const CountDown = ({ currentTime, countType, progressBar }) => {
 
@@ -62,20 +105,21 @@ const SetTimes = ({ handleIncDec, sessionTime, breakTime }) => {
 const TimerDisplay = ({
   timerActive,
   setTimerActive,
-  flipSessionType,
   playSound,
   setCurrentCount,
   currentCount,
   totalCount,
   countType,
-  resetDefaults }) =>
+  resetDefaults,
+  dispatch,
+  state }) =>
 {
 
   let intervalID = null;
 
   useEffect(() => {
     if (timerActive) {
-      intervalID = setInterval(() => setCurrentCount(time => time - 1), 1000);
+      intervalID = setInterval(() => dispatch({type: 'decrement'}), 1000);
     } else {
       clearInterval(intervalID);
     }
@@ -83,19 +127,7 @@ const TimerDisplay = ({
 
   }, [timerActive, intervalID]);
 
-  useEffect(() => {
-    if (currentCount === 0) {
-      //playSound('start');
-      //if (countType == 'Session') {
-      //  setCountType('Break');
-      //  setCurrentCount(breakTime);
-      //} else {
-      //  setCountType('Session');
-      //  setCurrentCount(sessionTime);
-      console.log("zero1")
-      }
-    },[currentCount])
-
+  
 
   const startStopTimer = () => {
     setTimerActive(prevState => !prevState);
@@ -110,9 +142,9 @@ const TimerDisplay = ({
     React.createElement("div", { id: "countDownButtons" },
 
     React.createElement(CountDown, {
-      currentTime: currentCount,
-      countType: countType,
-      progressBar: currentCount / totalCount * 100 }),
+      currentTime: state.currentCount,
+      countType: state.countType,
+      progressBar: state.currentCount / totalCount * 100 }),
 
 
     React.createElement(StartStopButtons, {
@@ -133,6 +165,8 @@ const App = () => {
   const [timerActive, setTimerActive] = useState(false);
   const [countType, setCountType] = useState("Session");
 
+  const [state, dispatch] = useReducer(reducer, initialState)
+
   const soundFile = 'https://grimjohncorn.github.io/FCC-Pomodora/beep-sound.mp3';
   const tomatoImg = 'https://grimjohncorn.github.io/FCC-Pomodora/img_tomato.png';
   const beepSound = useRef(null);
@@ -150,17 +184,6 @@ const App = () => {
 
   };
 
-  const flipSessionType = () => {
-    playSound('start');
-    if (countType == 'Session') {
-      setCountType('Break');
-      setCurrentCount(breakTime);
-    } else {
-      setCountType('Session');
-      setCurrentCount(sessionTime);
-    }
-  };
-
   const resetDefaults = () => {
     playSound('stop');
     setSessionTime(1500);
@@ -172,38 +195,7 @@ const App = () => {
 
   const handleIncDec = event => {
     const { id } = event.target;
-    const currentSession = sessionTime;
-    const currentBreak = breakTime;
-
-    switch (id) {
-      case 'session-decrement':
-        if (sessionTime > 60) {
-          setSessionTime(time => time - 60);
-          if (!timerActive && countType == 'Session') {setCurrentCount(currentSession - 60);}
-        }
-        break;
-      case 'session-increment':
-        if (sessionTime < 3600) {
-          setSessionTime(time => time + 60);
-          if (!timerActive && countType == 'Session') {setCurrentCount(currentSession + 60);}
-        }
-        break;
-      case 'break-decrement':
-        if (breakTime > 60) {
-          setBreakTime(time => time - 60);
-          if (!timerActive && countType == 'Break') {setCurrentCount(currentBreak - 60);}
-        }
-        break;
-      case 'break-increment':
-        if (breakTime < 3600) {
-          setBreakTime(time => time + 60);
-          if (!timerActive && countType == 'Break') {setCurrentCount(currentBreak + 60);}
-        }
-        break;
-      default:
-        //Should never occur
-        throw "Invalid type";}
-
+    dispatch({type: 'changeTime', data: id})
   };
 
   return (
@@ -216,8 +208,8 @@ const App = () => {
 
 
     React.createElement(SetTimes, {
-      sessionTime: sessionTime,
-      breakTime: breakTime,
+      sessionTime: state.sessionTime,
+      breakTime: state.breakTime,
       handleIncDec: handleIncDec }),
 
 
@@ -230,7 +222,8 @@ const App = () => {
       timerActive: timerActive,
       setTimerActive: setTimerActive,
       resetDefaults: resetDefaults,
-      flipSessionType: flipSessionType }),
+      dispatch: dispatch,
+      state: state}),
 
 
     React.createElement("audio", { id: "beep", ref: beepSound },

@@ -15,7 +15,7 @@ const reducer = (state, action) => {
     case 'decrement':
       //reduce the count by 1 or change session type if it reaches zero
       if (state.currentCount === 0) {
-        //playSound('start');
+        //playSound('start');  ** needs to be outside of reducer
         return {
           ...state, 
           countType: state.countType==='session' ? 'break' : 'session',
@@ -24,6 +24,8 @@ const reducer = (state, action) => {
       } else {
         return {...state, currentCount: state.currentCount - 1}
       }
+    case 'startStop':
+      return {...state, timerActive: !state.timerActive}
     case 'changeTime':
       //change the value of the break or session times
       const [type, incDec] = action.data.split("-")
@@ -40,6 +42,8 @@ const reducer = (state, action) => {
       } else {
         return state
       }
+    case 'reset':
+      return {...initialState}
     default:
       return state
   }
@@ -67,17 +71,18 @@ const CountDown = ({ currentTime, countType, progressBar }) => {
 
 const StartStopButtons = ({ timerActive, startStopTimer, resetTimer }) => {
   return (
-    React.createElement("div", { id: "startStop" },
-    React.createElement("button", {
-      id: "start_stop",
-      onClick: startStopTimer,
-      style: timerActive ? { backgroundColor: '#d4332a' } : {} },
-    timerActive ? "Stop" : "Start"),
+    <div id="startStop">
+      <button
+        id="start_stop"
+        onClick={startStopTimer}
+        style={timerActive ? { backgroundColor: '#d4332a' } : {} } >
+          {timerActive ? "Stop" : "Start"}
+      </button>
 
-    React.createElement("button", { id: "reset", onClick: resetTimer }, "Reset")));
-
-
-};
+      <button id="reset" onClick={resetTimer}>Reset</button>
+    </div>
+    )
+}
 
 const SetTimes = ({ handleIncDec, sessionTime, breakTime }) => {
   return (
@@ -102,60 +107,49 @@ const SetTimes = ({ handleIncDec, sessionTime, breakTime }) => {
 };
 
 
-const TimerDisplay = ({
-  timerActive,
-  setTimerActive,
-  playSound,
-  setCurrentCount,
-  currentCount,
-  totalCount,
-  countType,
-  resetDefaults,
-  dispatch,
-  state }) =>
-{
+const TimerDisplay = ({playSound, totalCount, dispatch, state }) => {
 
   let intervalID = null;
 
   useEffect(() => {
-    if (timerActive) {
+    if (state.timerActive) {
       intervalID = setInterval(() => dispatch({type: 'decrement'}), 1000);
     } else {
       clearInterval(intervalID);
     }
     return () => clearInterval(intervalID);
 
-  }, [timerActive, intervalID]);
+  }, [state.timerActive, intervalID]);
 
   
 
   const startStopTimer = () => {
-    setTimerActive(prevState => !prevState);
+    dispatch({type: 'startStop'})
   };
 
   const resetTimer = () => {
-    setTimerActive(false);
-    resetDefaults();
+    playSound('stop')
+    dispatch({type: 'reset'})
   };
 
   return (
-    React.createElement("div", { id: "countDownButtons" },
+    <div id="countDownButtons">
 
-    React.createElement(CountDown, {
-      currentTime: state.currentCount,
-      countType: state.countType,
-      progressBar: state.currentCount / totalCount * 100 }),
+      <CountDown
+        currentTime={state.currentCount}
+        countType={state.countType}
+        progressBar={state.currentCount / totalCount * 100 }>
+      </CountDown>
 
+      <StartStopButtons
+        startStopTimer={startStopTimer}
+        resetTimer={resetTimer}
+        timerActive={state.timerActive}>
+      </StartStopButtons>
+    </div>
+  )
+}
 
-    React.createElement(StartStopButtons, {
-      startStopTimer: startStopTimer,
-      resetTimer: resetTimer,
-      timerActive: timerActive })));
-
-
-
-
-};
 
 const App = () => {
 
@@ -180,18 +174,11 @@ const App = () => {
       case 'stop':
         beepSound.current.pause();
         beepSound.current.currentTime = 0;
-        break;}
-
-  };
-
-  const resetDefaults = () => {
-    playSound('stop');
-    setSessionTime(1500);
-    setBreakTime(300);
-    setCurrentCount(1500);
-    setCountType("Session");
-    setTimerActive(false);
-  };
+        break;
+      default:
+        throw new Error("unexpected type")
+    }
+  }
 
   const handleIncDec = event => {
     const { id } = event.target;
@@ -214,14 +201,8 @@ const App = () => {
 
 
     React.createElement(TimerDisplay, {
-      currentCount: currentCount,
-      totalCount: countType == 'Session' ? sessionTime : breakTime,
-      setCurrentCount: setCurrentCount,
+      totalCount: countType === 'Session' ? state.sessionTime : state.breakTime,
       playSound: playSound,
-      countType: countType,
-      timerActive: timerActive,
-      setTimerActive: setTimerActive,
-      resetDefaults: resetDefaults,
       dispatch: dispatch,
       state: state}),
 

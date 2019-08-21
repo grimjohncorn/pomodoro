@@ -1,5 +1,5 @@
 import React from 'react';
-import {useState, useEffect, useRef, useReducer} from 'react'
+import {useEffect, useRef, useReducer} from 'react'
 import './App.css';
 
 const initialState = {
@@ -15,7 +15,6 @@ const reducer = (state, action) => {
     case 'decrement':
       //reduce the count by 1 or change session type if it reaches zero
       if (state.currentCount === 0) {
-        //playSound('start');  ** needs to be outside of reducer
         return {
           ...state, 
           countType: state.countType==='session' ? 'break' : 'session',
@@ -25,24 +24,28 @@ const reducer = (state, action) => {
         return {...state, currentCount: state.currentCount - 1}
       }
     case 'startStop':
+      //start and stop the timer
       return {...state, timerActive: !state.timerActive}
     case 'changeTime':
       //change the value of the break or session times
       const [type, incDec] = action.data.split("-")
-      const time = type==='session' ? state.sessionTime : state.breakTime
-      const value = incDec==='increment' ? 60 : -60
+      const time = type === 'session' ? state.sessionTime : state.breakTime
+      const value = incDec === 'increment' ? 60 : -60
       
-      if ((time > 60 && incDec==='decrement') || (time < 3600 && incDec==='increment')) {
+      if ((time > 60 && incDec === 'decrement') || (time < 3600 && incDec==='increment')) {
         return {
           ...state, 
           sessionTime: type === 'session' ? state.sessionTime + value : state.sessionTime,
           breakTime: type === 'break' ? state.breakTime + value : state.breakTime,
-          currentCount: (!state.timerActive && state.countType === type) ? state.currentCount + value : state.currentCount 
+          currentCount: (!state.timerActive && state.countType === type && state.currentCount === time) ? 
+            state.currentCount + value : 
+            state.currentCount 
         }
       } else {
         return state
       }
     case 'reset':
+      //reset the value of the timer and session/break times
       return {...initialState}
     default:
       return state
@@ -53,7 +56,7 @@ const CountDown = ({ currentTime, countType, progressBar }) => {
 
   const minutes = Number.parseInt(currentTime / 60);
   const seconds = currentTime % 60;
-  const progress = countType == 'Session' ? progressBar + '%' : 100 - progressBar + '%';
+  const progress = countType === 'Session' ? progressBar + '%' : 100 - progressBar + '%';
 
   let addZeroSec = '';
   let addZeroMin = '';
@@ -61,13 +64,14 @@ const CountDown = ({ currentTime, countType, progressBar }) => {
   minutes < 10 ? addZeroMin = '0' : addZeroMin = '';
 
   return (
-    React.createElement("div", { id: "sessionTime" },
-    React.createElement("div", { id: "progressBox", style: { height: progress } }),
-    React.createElement("h3", { id: "timer-label" }, countType),
-    React.createElement("h1", { id: "time-left" }, addZeroMin + minutes + ':' + addZeroSec + seconds)));
+    <div id="sessionTime">
+      <div id="progressBox" style={{height: progress}}></div>
+      <h3 id="timer-label">{countType}</h3>
+      <h1 id="time-left">{addZeroMin + minutes + ':' + addZeroSec + seconds}</h1>
+    </div>
+  )
 
-
-};
+}
 
 const StartStopButtons = ({ timerActive, startStopTimer, resetTimer }) => {
   return (
@@ -85,31 +89,37 @@ const StartStopButtons = ({ timerActive, startStopTimer, resetTimer }) => {
 }
 
 const SetTimes = ({ handleIncDec, sessionTime, breakTime }) => {
+      
   return (
-    React.createElement("div", { id: "setTimes" },
+    <div id='setTimes'>
+        
+      <div className='setTimesControl'>
+        <h2 id='session-label'>Session Time</h2>
+        <div className='setTimesButtons'>
+            <button id='session-decrement' onClick={handleIncDec}>-</button>
+            <h2 id='session-length'>{sessionTime/60}</h2>
+            <button id='session-increment' onClick={handleIncDec}>+</button>
+        </div>
+      </div>
+        
+      <div className='setTimesControl'>
+        <h2 id='break-label'>Break Time</h2>
+        <div className='setTimesButtons'>
+          <button id='break-decrement' onClick={handleIncDec}>-</button>
+          <h2 id='break-length'>{breakTime/60}</h2>
+          <button id='break-increment' onClick={handleIncDec}>+</button>
+        </div>
+      </div>
+        
+    </div>
+  )
+}
 
-    React.createElement("div", { class: "setTimesControl" },
-    React.createElement("h2", { id: "session-label" }, "Session Time"),
-    React.createElement("div", { class: "setTimesButtons" },
-    React.createElement("button", { id: "session-decrement", onClick: handleIncDec }, "-"),
-    React.createElement("h2", { id: "session-length" }, sessionTime / 60),
-    React.createElement("button", { id: "session-increment", onClick: handleIncDec }, "+"))),
 
+const TimerDisplay = ({playSound, dispatch, state }) => {
 
-
-    React.createElement("div", { class: "setTimesControl" },
-    React.createElement("h2", { id: "break-label" }, "Break Time"),
-    React.createElement("div", { class: "setTimesButtons" },
-    React.createElement("button", { id: "break-decrement", onClick: handleIncDec }, "-"),
-    React.createElement("h2", { id: "break-length" }, breakTime / 60),
-    React.createElement("button", { id: "break-increment", onClick: handleIncDec }, "+")))));
-
-};
-
-
-const TimerDisplay = ({playSound, totalCount, dispatch, state }) => {
-
-  let intervalID = null;
+  const totalCount = state.countType === 'session' ? state.sessionTime : state.breakTime
+  let intervalID = null
 
   useEffect(() => {
     if (state.timerActive) {
@@ -121,6 +131,12 @@ const TimerDisplay = ({playSound, totalCount, dispatch, state }) => {
 
   }, [state.timerActive, intervalID]);
 
+
+  useEffect(() => {
+    if(state.currentCount === 0) {
+      playSound('start')
+    }
+  },[state.currentCount, playSound])
   
 
   const startStopTimer = () => {
@@ -153,12 +169,6 @@ const TimerDisplay = ({playSound, totalCount, dispatch, state }) => {
 
 const App = () => {
 
-  const [sessionTime, setSessionTime] = useState(1500);
-  const [breakTime, setBreakTime] = useState(300);
-  const [currentCount, setCurrentCount] = useState(1500);
-  const [timerActive, setTimerActive] = useState(false);
-  const [countType, setCountType] = useState("Session");
-
   const [state, dispatch] = useReducer(reducer, initialState)
 
   const soundFile = 'https://grimjohncorn.github.io/FCC-Pomodora/beep-sound.mp3';
@@ -186,33 +196,34 @@ const App = () => {
   };
 
   return (
-    React.createElement("div", { id: "mainPage" },
+    <div id="mainPage">
 
-    React.createElement("header", { id: "heading", title: "Pomodoro Clock" },
-    React.createElement("h1", null, "Pomodor"),
-    React.createElement("img", { id: "img_tomato", src: tomatoImg, alt: "tomato image" }),
-    React.createElement("h1", null, "Clock")),
+      <header id="heading" title="Pomodoro Clock">
+        <h1>Pomodor</h1>
+        <img id="img_tomato" src={tomatoImg} alt="tomato logo"></img>
+        <h1>Clock</h1>
+      </header>
 
-
-    React.createElement(SetTimes, {
-      sessionTime: state.sessionTime,
-      breakTime: state.breakTime,
-      handleIncDec: handleIncDec }),
-
-
-    React.createElement(TimerDisplay, {
-      totalCount: countType === 'Session' ? state.sessionTime : state.breakTime,
-      playSound: playSound,
-      dispatch: dispatch,
-      state: state}),
+      <SetTimes 
+        sessionTime={state.sessionTime}
+        breakTime={state.breakTime}
+        handleIncDec={handleIncDec}
+        state={state}>
+      </SetTimes>
 
 
-    React.createElement("audio", { id: "beep", ref: beepSound },
-    React.createElement("source", { src: soundFile, type: "audio/mpeg", preload: "auto" }))));
+      <TimerDisplay
+        playSound={playSound}
+        dispatch={dispatch}
+        state={state}>
+      </TimerDisplay>
 
+      <audio id='beep' ref={beepSound}>
+          <source src={soundFile} type='audio/mpeg' preload='auto' />
+      </audio>
 
-
-
+    </div>
+  )
 }
 
 export default App;

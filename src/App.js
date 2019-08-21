@@ -52,11 +52,29 @@ const reducer = (state, action) => {
   }
 }
 
-const CountDown = ({ currentTime, countType, progressBar }) => {
+const ConvertMinSec = ({ time }) => {
+  const minutes = Number.parseInt(time / 60)
+  const seconds = time % 60
 
-  const minutes = Number.parseInt(currentTime / 60);
-  const seconds = currentTime % 60;
-  const progress = countType === 'Session' ? progressBar + '%' : 100 - progressBar + '%';
+  let addZeroSec = ''
+  let addZeroMin = ''
+  addZeroSec = seconds < 10 ? addZeroSec = '0' : addZeroSec = ''
+  addZeroMin = minutes < 10 ? '0' : ''
+
+  return (
+    addZeroMin + minutes + ':' + addZeroSec + seconds
+  )
+}
+
+const CountDown = ({ state }) => {
+
+  const {currentCount, countType, sessionTime, breakTime} = state
+  const totalCount = countType === 'session' ? sessionTime : breakTime
+  const progressBar = currentCount / totalCount * 100
+  
+  const minutes = Number.parseInt(currentCount / 60);
+  const seconds = currentCount % 60;
+  const progress = countType === 'session' ? progressBar + '%' : 100 - progressBar + '%';
 
   let addZeroSec = '';
   let addZeroMin = '';
@@ -68,12 +86,16 @@ const CountDown = ({ currentTime, countType, progressBar }) => {
       <div id="progressBox" style={{height: progress}}></div>
       <h3 id="timer-label">{countType}</h3>
       <h1 id="time-left">{addZeroMin + minutes + ':' + addZeroSec + seconds}</h1>
+      <ConvertMinSec time={currentCount} />
     </div>
   )
 
 }
 
-const StartStopButtons = ({ timerActive, startStopTimer, resetTimer }) => {
+const StartStopButtons = ({ state, startStopTimer, resetTimer }) => {
+  
+  const {timerActive} = state
+
   return (
     <div id="startStop">
       <button
@@ -88,8 +110,10 @@ const StartStopButtons = ({ timerActive, startStopTimer, resetTimer }) => {
     )
 }
 
-const SetTimes = ({ handleIncDec, sessionTime, breakTime }) => {
-      
+const SetTimes = ({ handleIncDec, state}) => {
+  
+  const {sessionTime, breakTime} = state
+  
   return (
     <div id='setTimes'>
         
@@ -118,7 +142,6 @@ const SetTimes = ({ handleIncDec, sessionTime, breakTime }) => {
 
 const TimerDisplay = ({playSound, dispatch, state }) => {
 
-  const totalCount = state.countType === 'session' ? state.sessionTime : state.breakTime
   let intervalID = null
 
   useEffect(() => {
@@ -151,17 +174,14 @@ const TimerDisplay = ({playSound, dispatch, state }) => {
   return (
     <div id="countDownButtons">
 
-      <CountDown
-        currentTime={state.currentCount}
-        countType={state.countType}
-        progressBar={state.currentCount / totalCount * 100 }>
-      </CountDown>
+      <CountDown state={state} />
 
       <StartStopButtons
         startStopTimer={startStopTimer}
         resetTimer={resetTimer}
-        timerActive={state.timerActive}>
+        state={state}>
       </StartStopButtons>
+    
     </div>
   )
 }
@@ -205,12 +225,9 @@ const App = () => {
       </header>
 
       <SetTimes 
-        sessionTime={state.sessionTime}
-        breakTime={state.breakTime}
         handleIncDec={handleIncDec}
         state={state}>
       </SetTimes>
-
 
       <TimerDisplay
         playSound={playSound}

@@ -4,6 +4,7 @@ import './App.css';
 
 const initialState = {
   currentCount: 1500,
+  currentTotal: 1500,
   countType: 'session',
   breakTime: 300,
   sessionTime: 1500,
@@ -15,10 +16,12 @@ const reducer = (state, action) => {
     case 'decrement':
       //reduce the count by 1 or change session type if it reaches zero
       if (state.currentCount === 0) {
+        const newCount = state.countType==='session' ? state.breakTime : state.sessionTime
         return {
           ...state, 
           countType: state.countType==='session' ? 'break' : 'session',
-          currentCount: state.countType==='session' ? state.breakTime : state.sessionTime
+          currentCount: newCount,
+          currentTotal: newCount
         }
       } else {
         return {...state, currentCount: state.currentCount - 1}
@@ -33,13 +36,13 @@ const reducer = (state, action) => {
       const value = incDec === 'increment' ? 60 : -60
       
       if ((time > 60 && incDec === 'decrement') || (time < 3600 && incDec==='increment')) {
+        const timeMatches = (!state.timerActive && state.countType === type && state.currentCount === time)
         return {
           ...state, 
           sessionTime: type === 'session' ? state.sessionTime + value : state.sessionTime,
           breakTime: type === 'break' ? state.breakTime + value : state.breakTime,
-          currentCount: (!state.timerActive && state.countType === type && state.currentCount === time) ? 
-            state.currentCount + value : 
-            state.currentCount 
+          currentCount: timeMatches ? state.currentCount + value : state.currentCount,
+          currentTotal: timeMatches ? state.currentTotal + value : state.currentTotal
         }
       } else {
         return state
@@ -68,25 +71,16 @@ const ConvertMinSec = ({ time }) => {
 
 const CountDown = ({ state }) => {
 
-  const {currentCount, countType, sessionTime, breakTime} = state
-  const totalCount = countType === 'session' ? sessionTime : breakTime
-  const progressBar = currentCount / totalCount * 100
+  const {currentCount, currentTotal, countType, sessionTime, breakTime} = state
   
-  const minutes = Number.parseInt(currentCount / 60);
-  const seconds = currentCount % 60;
+  const progressBar = currentCount / currentTotal * 100
   const progress = countType === 'session' ? progressBar + '%' : 100 - progressBar + '%';
-
-  let addZeroSec = '';
-  let addZeroMin = '';
-  addZeroSec = seconds < 10 ? addZeroSec = '0' : addZeroSec = '';
-  minutes < 10 ? addZeroMin = '0' : addZeroMin = '';
 
   return (
     <div id="sessionTime">
       <div id="progressBox" style={{height: progress}}></div>
       <h3 id="timer-label">{countType}</h3>
-      <h1 id="time-left">{addZeroMin + minutes + ':' + addZeroSec + seconds}</h1>
-      <ConvertMinSec time={currentCount} />
+      <h1 id="time-left"><ConvertMinSec time={currentCount} /></h1>
     </div>
   )
 

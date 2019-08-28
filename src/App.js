@@ -56,6 +56,7 @@ const reducer = (state, action) => {
 }
 
 const ConvertMinSec = ({ time }) => {
+  //Convert seconds into mm:ss
   const minutes = Number.parseInt(time / 60)
   const seconds = time % 60
 
@@ -71,7 +72,7 @@ const ConvertMinSec = ({ time }) => {
 
 const CountDown = ({ state }) => {
 
-  const {currentCount, currentTotal, countType, sessionTime, breakTime} = state
+  const {currentCount, currentTotal, countType} = state
   
   const progressBar = currentCount / currentTotal * 100
   const progress = countType === 'session' ? progressBar + '%' : 100 - progressBar + '%';
@@ -136,17 +137,18 @@ const SetTimes = ({ handleIncDec, state}) => {
 
 const TimerDisplay = ({playSound, dispatch, state }) => {
 
-  let intervalID = null
+  const intervalRef = useRef()
 
   useEffect(() => {
     if (state.timerActive) {
-      intervalID = setInterval(() => dispatch({type: 'decrement'}), 1000);
+      const intervalID = setInterval(() => dispatch({type: 'decrement'}), 1000)
+      intervalRef.current = intervalID //store the intervalID so that it persists between renders
     } else {
-      clearInterval(intervalID);
+      clearInterval(intervalRef.current)
     }
-    return () => clearInterval(intervalID);
+    return () => clearInterval(intervalRef.current)
 
-  }, [state.timerActive, intervalID]);
+  }, [state.timerActive, dispatch])
 
 
   useEffect(() => {

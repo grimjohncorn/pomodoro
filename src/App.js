@@ -105,10 +105,15 @@ const StartStopButtons = ({ state, startStopTimer, resetTimer }) => {
     )
 }
 
-const SetTimes = ({ handleIncDec, state}) => {
+const SetTimes = ({ state, dispatch }) => {
   
   const {sessionTime, breakTime} = state
   
+  const handleIncDec = event => {
+    const { id } = event.target;
+    dispatch({type: 'changeTime', data: id})
+  };
+
   return (
     <div id='setTimes'>
         
@@ -135,7 +140,7 @@ const SetTimes = ({ handleIncDec, state}) => {
 }
 
 
-const TimerDisplay = ({playSound, dispatch, state }) => {
+const TimerDisplay = ({ playSound, dispatch, state }) => {
 
   const intervalRef = useRef()
 
@@ -205,12 +210,7 @@ const App = () => {
         throw new Error("unexpected type")
     }
   }
-
-  const handleIncDec = event => {
-    const { id } = event.target;
-    dispatch({type: 'changeTime', data: id})
-  };
-
+  
   return (
     <div id="mainPage">
 
@@ -221,7 +221,7 @@ const App = () => {
       </header>
 
       <SetTimes 
-        handleIncDec={handleIncDec}
+        dispatch={dispatch}
         state={state}>
       </SetTimes>
 
